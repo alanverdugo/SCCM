@@ -1,0 +1,22 @@
+{
+    "groups": [
+        {
+            "name": "Job failures",
+            "description": "People to be notified when SCCM jobs fail.",
+            "members": [
+                "example0@example.com",
+                "example1@example.com",
+                "example2@example.com"
+            ]
+        },
+        {
+            "name": "CSR checker",
+            "description": "People to be notified when CSR files are missing.",
+            "members": [
+                "example3@example.com",
+                "example4@example.com",
+                "example5@example.com"
+            ]
+        }
+    ]
+}
