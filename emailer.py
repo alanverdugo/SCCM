@@ -20,9 +20,14 @@
         2017-05-09 (?)
 
     Modification list:
-        CCYY-MM-DD  Autor                   Description
-
+        CCYY-MM-DD  Autor           Description
+        2017-06-23  Alan Verdugo    Improved path string concatenation.
+                                    Implemented logging functionality.
+                                    Minor improvements.
 '''
+
+# Needed for system and environment information.
+import os
 
 # Needed for system and environment information.
 import sys
@@ -36,17 +41,26 @@ from email.mime.text import MIMEText
 # The actual email-sending functionality.
 import smtplib
 
+# Handle output.
+import logging
+
+
 # Home of the SCCM installation.
-sccm_home = "/opt/ibm/sccm/"
+sccm_home = os.path.join("/opt", "ibm", "sccm")
 
 # The path where this script and the dist. list are.
-binary_home = sccm_home + "bin/custom/"
+binary_home = os.path.join(sccm_home, "bin", "custom")
 
 # The full path of the actual distribution list file.
-mail_list_file = binary_home + "mailList.json"
+mail_list_file = os.path.join(binary_home, "mailList.json")
 
 # The hostname of the SMTP server.
 smtp_server = "localhost"
+
+# Logging configuration.
+log = logging.getLogger("emailer")
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+log.setLevel(logging.INFO)
 
 
 def send_email(distribution_group, email_subject, email_from, results_message):
@@ -56,7 +70,7 @@ def send_email(distribution_group, email_subject, email_from, results_message):
             if email_groups["name"] == distribution_group:
                 email_to = email_groups["members"]
     except Exception as exception:
-        print "ERROR: Cannot read email recipients list.", exception
+        log.error("Cannot read email recipients list. {0}".format(exception))
         sys.exit(1)
     msg = MIMEText(results_message,"plain")
     msg["Subject"] = email_subject
@@ -65,6 +79,8 @@ def send_email(distribution_group, email_subject, email_from, results_message):
         s.sendmail(email_from, email_to, msg.as_string())
         s.quit()
     except Exception as exception:
-        print "ERROR: Unable to send notification email.", exception
+        log.error("Unable to send notification email. {0}".format(exception))
         sys.exit(1)
-    print "INFO: Notification email sent to", email_to
+    else:
+        log.info("Notification email sent to {0}".format(email_to))
+        exit (0)
