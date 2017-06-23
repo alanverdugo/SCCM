@@ -1,19 +1,22 @@
 #!/usr/bin/python
-'''
+"""
 
     Description:
         This script checks if all the CSR files were successfully collected 
         in a specific date or month. If not, it will collect them.
         This was customized from the CSR checker that we use in the TUAM EOM 
         process.
- 
+
     Usage:
-        python csr_checker.py -y|--year YYYY -m|--month CURMON|PREMON|MM (01-12) -d|--day DD (01-31)
+        python csr_checker.py -y|--year YYYY 
+            -m|--month CURMON|PREMON|MM (01-12) 
+            -d|--day DD (01-31)
 
         csr_checker.py [-h] [-y YEAR] -m
                             {01,02,03,04,05,06,07,08,09,10,11,12,PREMON,CURMON}
-                            [-d {01,02,03,04,05,06,07,08,09,10,11,12,13,14,15,
-                                16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31}]
+                            [-d {01,02,03,04,05,06,07,08,09,10,
+                                11,12,13,14,15,16,17,18,19,20,
+                                21,22,23,24,25,26,27,28,29,30,31}]
                             [-v]
 
         optional arguments:
@@ -72,7 +75,18 @@
         2017-06-13  Alan Verdugo    Added the -v/--verbose flag.
                                     Error messages are now sent to stderr.
                                     Other minor improvements.
-'''
+        2017-06-23  Alan Verdugo    Improved path string concatenation.
+                                    Improved function and variable naming.
+                                    Implemented logging functionality.
+                                    The error_message string is now concatenated
+                                    in a list instead of using += in the loop,
+                                    (Since strings are immutable, this creates 
+                                    unnecessary temporary objects and results 
+                                    in quadratic rather than linear running 
+                                    time.) So, using a list is more elegant and 
+                                    should help with running time.
+                                    Minor improvements (readability mainly).
+"""
 
 # Needed for system and environment information.
 import os
@@ -101,6 +115,9 @@ import socket
 # Custom module for email sending (refer to emailer.py)
 import emailer
 
+# Handle output.
+import logging
+
 
 ## Environmental variables.
 
@@ -108,35 +125,41 @@ import emailer
 hostname = socket.gethostname()
 
 # Root path for the CSR files.
-csrPath = "/home/ftpuser/upload/"
+CSR_path = os.path.join("/home", "ftpuser", "upload")
 
 # SCCM main installation path.
-sccm_home = "/opt/ibm/sccm/"
+sccm_home = os.path.join("/opt", "ibm", "sccm")
 
 # Collector's logs path.
-destPath = sccm_home + "samples/logs/collectors/"
+dest_path = os.path.join(sccm_home, "samples", "logs", "collectors")
 
 # The path where this script and the distribution list are located.
-binary_home = sccm_home + "bin/custom/"
+binary_home = os.path.join(sccm_home, "bin", "custom")
 
 # Sender address.
 email_from = "SCCM@" + hostname
 
 # Error checking.
-error_message = ""
 error_found = False
+error = ""
+
+# A list to which we will append error messages.
+error_message = []
 
 # Email distribution group.
 distribution_group = "CSR_checker"
 
+# Logging configuration.
+log = logging.getLogger("csr_checker")
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 
-def getArgs(argv):
+
+def get_args(argv):
     year = None
     month = None
     day = None
     global curmon
     curmon = None
-    global verbose
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-y","--year",
@@ -169,128 +192,145 @@ def getArgs(argv):
     # If the month argument is "PREMON", get the current month and year and 
     # calculate the previous month.
     if args.month == "PREMON":
-        lastMonth = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
-        args.month = lastMonth.strftime("%m")
-        args.year = lastMonth.strftime("%Y")
+        last_month = (datetime.date.today().replace(day=1) - 
+            datetime.timedelta(days=1))
+        args.month = last_month.strftime("%m")
+        args.year = last_month.strftime("%Y")
     elif args.month == "CURMON":
         curmon = True
         args.month = datetime.date.today().strftime("%m")
         args.year = datetime.date.today().strftime("%Y")
 
-    # The "day" argument is not required (in case we want to check a full 
-    # month) but if we do receive it, make sure it is a valid date 
+    # The "day" argument is not always required (in case we want to check a 
+    # full month) but if we do receive it, make sure it is a valid date 
     # (e.g. not 2016-02-31)
     if args.day:
-        # Validate that we have a valid date.
+        # Ensure that we have a valid date.
         try:
             datetime.datetime(year=int(args.year),
                 month=int(args.month),
                 day=int(args.day))
         except:
-            sys.stderr.write("ERROR: Provided date is invalid.\n")
+            logging.error("Provided date is invalid.\n")
             exit(2)
-    verbose = args.verbose
+
+
+    if args.verbose:
+        log.setLevel(logging.INFO)
+
     main(args.year, args.month, args.day)
 
 
-def checkDay(year, month, day):
+def check_day(year, month, day):
     global error_message
     global error_found
 
     # Find the files for the specified date.
-    for jobName in ["consolidation_backups",
+    for job_name in ["consolidation_backups",
         "consolidation_cinder_volume",
         "consolidation_nova_compute"]:
-        # Check inside every directory inside the jobNames 
+
+        # Build an OS-agnostic path to the jobfiles directories.
+        job_path = os.path.join(CSR_path, job_name)
+
+        # Check inside every directory inside the job_names 
         # (there is one dir for every satellite server).
         # Check if any of the arguments are invalid directories.
-        if os.path.exists(csrPath + jobName):
+        if os.path.exists(job_path):
             # Read the contents of the path and see if there are any 
             # directories inside.
-            for dirname, dirnames, filenames in os.walk(csrPath+jobName):
-                # print path to all subdirectories first.
-                for subdirname in dirnames:
-
+            for dir_name, dir_names, filenames in os.walk(job_path):
+                for sub_dir_name in dir_names:
                     # This next line will ensure the month and day are 
                     # zero-padded in case they are single digit numbers 
                     # (E.g. "3" will become "03")
-                    filename = datetime.date(int(year), int(month), int(day)).strftime("%Y%m%d")+".txt"
+                    filename = datetime.date(int(year), int(month), 
+                        int(day)).strftime("%Y%m%d") + ".txt"
+
+                    # Build an OS-agnostic full path to the CSR file(s).
+                    CSR_full_path = os.path.join(CSR_path, job_name, 
+                        sub_dir_name, filename)
+
+                    # Build an OS-agnostic full path to where the CSR file(s)
+                    # will be ultimately copied.
+                    destination_full_path = os.path.join(dest_path, job_name, 
+                        sub_dir_name, filename)
 
                     # If we do find directories inside, see if they have all 
                     # the expected files in them.
-                    if not (os.path.isfile(csrPath+jobName+"/"+subdirname+"/"+filename)):
-                        error_message += "WARNING: File not found: "\
-                            + csrPath + jobName + "/" + subdirname +\
-                            "/" + filename + "\n"
+                    if not (os.path.isfile(CSR_full_path)):
+                        error = "File not found: {0}".format(CSR_full_path)
+                        log.error(error)
+                        error_message.append(error)
                         error_found = True
                     else:
-                        if verbose:
-                            print "INFO: The file", filename, "is present in "\
-                                + str(csrPath) + str(jobName) + "/" + \
-                                str(subdirname)
-                            print "INFO: Copying file to final destination..."
+                        log.info("The file {0} " \
+                            "is present.".format(CSR_full_path))
+                        log.info("Copying file to final destination...")
                         # Copy the file to the desired location.
                         try:
-                            copy2(csrPath + jobName + "/" + subdirname + "/" + filename, 
-                                destPath + jobName + "/" + subdirname + "/" + filename)
-                            if verbose:
-                                print "INFO: Copy completed!"
+                            copy2(CSR_full_path, destination_full_path)
                         except IOError as exception:
-                            error_message += "ERROR: Unable to copy file. "\
-                                + str(exception) + "\n"
+                            error = "Unable to copy file. {0}"\
+                                "\n".format(exception)
+                            log.error(error)
+                            error_message.append(error)
                             error_found = True
+                        else:
+                            log.info("Copy completed!")
         else:
-            error_message += "ERROR: The path " + csrPath + str(jobName) + \
-                " does not exist. Verify the arguments.\n"
+            error_message.append("The path {0}" \
+                " does not exist.\n".format(job_path))
             error_found = True
 
 
-def checkMonth(year, month):
+def check_month(year, month):
     # If we are checking the current month, we need to stop checking 
     # until "yesterday", unless it is the 1st day of the month, (we will 
     # check the whole previous month if that is the case).
     if curmon:
-        daysOfTheMonth = datetime.date.today() - datetime.timedelta(days=1)
-        daysOfTheMonth = daysOfTheMonth.strftime("%d")
+        days_of_the_month = datetime.date.today() - datetime.timedelta(days=1)
+        days_of_the_month = days_of_the_month.strftime("%d")
         if (datetime.date.today().strftime("%d") == "01"):
             # If we made it here, it means it is the 1st day of the month.
             # So we need to check all the days of the previous month.
             # Essentially, it would be like using the PREMON argument.
-            lastMonth = datetime.date.today().replace(day=1) - datetime.timedelta(days=1)
-            month = lastMonth.strftime("%m")
-            year = lastMonth.strftime("%Y")
+            last_month = (datetime.date.today().replace(day=1) 
+                - datetime.timedelta(days=1))
+            month = last_month.strftime("%m")
+            year = last_month.strftime("%Y")
     else:
         # Calculate how many days the specified month has.
-        daysOfTheMonth = calendar.monthrange(int(year),int(month))[1]
-    if verbose:
-        print "INFO: Checking month", month, "of the year", year,\
-            " (", daysOfTheMonth, ") files."
+        days_of_the_month = calendar.monthrange(int(year), int(month))[1]
+    log.info("Checking month {0} of the year {1} "\
+        "({2}) files.".format(month, year, days_of_the_month))
 
     # Check that we have all the files for the specified month.
     day=01
-    while day <= int(daysOfTheMonth):
-        # Call the checkDay function as many times as it is needed.
-        checkDay(year, month, day)
-        day=int(day)+1
-    
+    while day <= int(days_of_the_month):
+        # Call the check_day function as many times as it is needed.
+        check_day(year, month, day)
+        day+=1
+
 
 def main(year, month, day):
     # Check if we are going to check (?) a whole month or an individual day.
     if year and month and day:
         # Check an specific day.
-        checkDay(year, month, day)
+        check_day(year, month, day)
     elif year and month and not(day):
         # Check all the days in a month.
-        checkMonth(year, month)
+        check_month(year, month)
     if error_found:
-        # Print error message(s) to stderr.
-        sys.stderr.write(error_message)
+        # Join the error message list into a string object.
+        error_message_string = "\n".join(error_message)
+
         # Send the notification email.
         emailer.send_email(distribution_group, "SCCM CSR processing error", 
-            email_from, error_message)
+            email_from, error_message_string)
         exit (1)
 
 
 if __name__ == "__main__": 
     # Get and verify the arguments are well-formed and we got a valid date.
-    getArgs(sys.argv[1:])
+    get_args(sys.argv[1:])
