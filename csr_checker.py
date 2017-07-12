@@ -86,6 +86,8 @@
                                     time.) So, using a list is more elegant and 
                                     should help with running time.
                                     Minor improvements (readability mainly).
+        2017-07-11  Alan Verdugo    Validated that the copy destination 
+                                    directories exists and are writeable.
 """
 
 # Needed for system and environment information.
@@ -106,7 +108,7 @@ import glob
 # Proper handling of arguments.
 import argparse
 
-# Copying of files.
+# Copying of files (using copy2, metadata is copied as well).
 from shutil import copy2
 
 # Needed for system and environment information.
@@ -251,10 +253,9 @@ def check_day(year, month, day):
                     CSR_full_path = os.path.join(CSR_path, job_name, 
                         sub_dir_name, filename)
 
-                    # Build an OS-agnostic full path to where the CSR file(s)
-                    # will be ultimately copied.
-                    destination_full_path = os.path.join(dest_path, job_name, 
-                        sub_dir_name, filename)
+                    # Destination directory.
+                    destination_directory = os.path.join(dest_path, job_name, 
+                        sub_dir_name)
 
                     # If we do find directories inside, see if they have all 
                     # the expected files in them.
@@ -267,9 +268,38 @@ def check_day(year, month, day):
                         log.info("The file {0} " \
                             "is present.".format(CSR_full_path))
                         log.info("Copying file to final destination...")
+
+                        # Check that the destination path exists.
+                        if not os.path.isdir(destination_directory):
+                            log.warning("{0} does not exist".format(
+                                destination_directory))
+                            log.info("Attempting to create {0}".format(
+                                destination_directory))
+                            try:
+                                # If it does not exist, create it.
+                                os.makedirs(destination_directory, 0755)
+                            except e as exception:
+                                error = "Unable to create {0}. Exception: "\
+                                    "{1}".format(destination_directory, 
+                                    exception)
+                                log.error(error)
+                                error_message.append(error)
+                                error_found = True
+
+                        # Validate the destination directory is writeable.
+                        # This is probably overkill since, if the directory 
+                        # is not writeable, the copy attempt will fail and 
+                        # the exception will report the lack of permissions.
+                        if not os.access(destination_directory, os.W_OK):
+                            error = "Unable to write to {0}".format(
+                                destination_directory)
+                            log.error(error)
+                            error_message.append(error)
+                            error_found = True
+
                         # Copy the file to the desired location.
                         try:
-                            copy2(CSR_full_path, destination_full_path)
+                            copy2(CSR_full_path, destination_directory)
                         except IOError as exception:
                             error = "Unable to copy file. {0}"\
                                 "\n".format(exception)
