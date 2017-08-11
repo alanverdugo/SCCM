@@ -11,78 +11,123 @@
         list.
 
     Autor:
-        Alan Verdugo
+        Alan Verdugo (alanvemu@mx1.ibm.com)
+
+    Creation date:
+        2016-06-01 (?)
 
     Modification list:
         CCYY-MM-DD  Autor                   Description
-        2016-07-25  Alan Verdugo           The job_names are not necessarily 
+        2016-07-25  alanvemu@mx1.ibm.com    The job_names are not necessarily 
                                             equal to the pathnames where the 
                                             log files are created.
                                             I had to open the actual job_files 
                                             in order to get the correct name of 
                                             each job.
                                             Also improved some error checking.
-        2016-07-28  Alan Verdugo           Now we look for errors in the 
+        2016-07-28  alanvemu@mx1.ibm.com    Now we look for errors in the 
                                             entire XML log.
-        2017-04-18  Alan Verdugo           Converted identation to spaces.
+        2017-04-18  alanvemu@mx1.ibm.com    Converted identation to spaces.
                                             Some changes in readability.
                                             Organized everything into functions.
+        2017-05-10  alanvemu@mx1.ibm.com    Separated the send_email function 
+                                            into an independent module.
+                                            Revised the import and variables 
+                                            sections for better legibility.
+                                            Added minor improvements.
+        2017-08-08  alanvemu@mx1.ibm.com    Improved readability.
+                                            Changed lines larger than 80 chars.
+                                            Other small improvements.
+        2017-08-10  alanvemu@mx1.ibm.com    Validate the age of the newest log 
+                                            file and send a warning if a log 
+                                            was not created for the previous 
+                                            job execution.
+        2017-08-11  alanvemu@mx1.ibm.com    Created and assigned the 
+                                            MAX_AGE_OF_LAST_LOG_FILE global 
+                                            constant.
 '''
 
-import os                                   # Needed for system and environment information.
-import sys                                  # Needed for system and environment information.
-import socket                               # Needed for system and environment information.
-import glob                                 # Needed to get the newest log files.
-import xml.etree.ElementTree as ET          # XML navigation.
-import smtplib                              # For the actual email-sending functionality.
-from email.mime.text import MIMEText        # Email modules we will need.
-from datetime import datetime               # For timestamp information in the email subject.
-import json                                 # For reading the dist, list.
-import argparse                             # Handling arguments.
+# Needed for system and environment information.
+import os
 
-smtp_server = "localhost"                   # The hostname of the SMTP server.
-sccm_home = "/opt/ibm/sccm/"               # Home of the SCCM installation.
-binary_home = sccm_home + "bin/custom/"     # The path where this script and the dist. list are.
-mail_list_file = binary_home + "mailList.json"
-job_file_dir = sccm_home + "jobfiles/"      # Location path of SCCM jobfiles.
-log_path = sccm_home + "logs/jobrunner/"    # The root location of the collectors log files.
-list_of_job_names = []                      # A list of the jobnames.
-list_of_log_files = []                      # A list of the found logs.
-newest_log = ""                             # Placeholder for the log filenames.
-hostname = socket.gethostname()             # The hostname where this is running.
-email_from = "SCCM@" + hostname             # Email sender address.
-mail_list = ""                              # JSON Object of mail_list_file.
-distribution_group = "Job_failures"         # Email distribution group.
+# Needed for system and environment information.
+import sys
+
+# Needed for system and environment information.
+import socket
+
+# Needed to get the newest log files.
+import glob
+
+# XML navigation.
+import xml.etree.ElementTree as ET
+
+# For timestamp information in the email subject.
+from datetime import datetime
+
+# Handling arguments.
+import argparse
+
+# Custom module for email sending (refer to emailer.py)
+import emailer
+
+# Handle logging.
+import logging
+
+# To get current seconds since Epoch.
+import time
 
 
-def send_email(distribution_group, email_subject, email_from, results_message):
-    try:
-        mail_list = json.load(open(mail_list_file, "r+"))
-        for email_groups in mail_list["groups"]:
-            if email_groups["name"] == distribution_group:
-                email_to = email_groups["members"]
-    except Exception as exception:
-        print "ERROR: Cannot read email recipients list.", exception
-        sys.exit(1)
-    msg = MIMEText(results_message,"plain")
-    msg["Subject"] = email_subject
-    s = smtplib.SMTP(smtp_server)
-    try:
-        s.sendmail(email_from, email_to, msg.as_string())
-        s.quit()
-    except Exception as exception:
-        print "ERROR: Unable to send notification email.", exception
-        sys.exit(1)
-    print "INFO: Notification email sent to", email_to
+# Home of the SCCM installation.
+sccm_home = "/opt/ibm/sccm/"
+
+# The path where this script and the distribution list are located.
+binary_home = os.path.join(sccm_home, "bin/custom/")
+
+# Location path of SCCM jobfiles.
+job_file_dir = os.path.join(sccm_home, "jobfiles/")
+
+# The root location of the collectors log files.
+log_path = os.path.join(sccm_home, "logs/jobrunner/")
+
+# A list of the jobnames.
+list_of_job_names = []
+
+# A list of the found logs.
+list_of_log_files = []
+
+# Placeholder for the log filenames.
+newest_log = ""
+
+# The max age we are willing to accept for the creation of the newest 
+# log file (in seconds). This is a global constant.
+MAX_AGE_OF_LAST_LOG_FILE = 600
+
+# The hostname where this is running.
+hostname = socket.gethostname()
+
+# Email sender address.
+email_from = "SCCM@" + hostname
+
+# JSON Object of mail_list_file.
+mail_list = ""
+
+# Email distribution group.
+distribution_group = "Job_failures"
+
+# Logging configuration.
+log = logging.getLogger("sccm_error_log_emailer")
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def main(arguments):
     # Get the list of arguments (i.e. the jobs to check).
     for argument in arguments:
-        job_file = job_file_dir + argument + ".xml"
+        job_file = os.path.join(job_file_dir, argument) + ".xml"
         # Validate that the jobfile exists and its readable.
         if not os.path.exists(job_file):
-            print "ERROR: Jobfile", job_file, "does not exist or is not readable. Verify the arguments."
+            log.error("Jobfile {0} does not exist or is not readable. Verify "\
+                "the arguments.".format(job_file))
             sys.exit(1)
         # Parse the jobfile to get the actual job name(s).
         # If the XML is malformed, that could mean that we have problems.
@@ -94,32 +139,64 @@ def main(arguments):
             # TODO: Get only the jobs that have an "active" tag on them.
             for job in root.findall("{http://www.ibm.com/TUAMJobs.xsd}Job"):
                 # Look for the content of the "Job id" tag.
-                job_name = job.get("id")
-                list_of_job_names.append(job_name)
+                list_of_job_names.append(job.get("id"))
         except Exception as exception:
-            email_subject = "ERROR: Malformed XML log."
-            send_email(email_subject, email_to, email_from, 
-                "ERROR: The file" + job_file + " contains malformed XML. " + exception)
+            email_subject = "ERROR: Malformed XML job file."
+            error_body = "The file {0} contains malformed XML: "\
+                "{1}".format(job_file, exception)
+            log.error(error_body)
+            emailer.send_email(distribution_group, email_subject, email_from, 
+                error_body)
 
         for job_name in list_of_job_names:
+            absolute_job_file = os.path.join(log_path, job_name)
             # Check if any of the log paths are invalid directories.
-            if os.path.exists(log_path + job_name):
+            if os.path.exists(absolute_job_file):
                 # Validate that we have at least one log file to work with.
-                if len(glob.glob(log_path + job_name + "/*.xml")) > 0:
+                if len(glob.glob(absolute_job_file + "/*.xml")) > 0:
                     # Get the newest log in the directory
-                    newest_log = max(glob.iglob(log_path + job_name + "/*.xml"), key=os.path.getctime)
+                    newest_log = max(glob.iglob(absolute_job_file + "/*.xml"),
+                        key=os.path.getctime)
+                    # If the newest log file was created more than, say, 10 
+                    # minutes ago, we will assume the startJobRunner.sh script 
+                    # failed and did not create a proper log file, in which 
+                    # case we may be missing data, so let's send a notification 
+                    # email.
+                    if ((time.time() - os.path.getctime(newest_log)) >
+                        MAX_AGE_OF_LAST_LOG_FILE):
+                        # The newest file is older than 10 minutes.
+                        email_subject = "ERROR: Missing log file."
+                        error_body = "The previous run of the {0} job did not "\
+                            "generate a log file.\n\rThis may indicate a "\
+                            "malfunction in startJobRunner.sh.\n\rCheck "\
+                            "the console logs.".format(job_name)
+                        log.error(error_body)
+                        emailer.send_email(distribution_group, email_subject, 
+                            email_from, error_body)
+                        sys.exit(2)
+
                     # Make a list with all the valid log files.
                     list_of_log_files.append(newest_log)
                 else:
-                    print "ERROR: No XML logs found in " + log_path + job_name
+                    log.error("No XML logs found in "\
+                        "{0}".format(absolute_job_file))
             else:
-                print "ERROR: The path " + log_path + job_name + " does not exist. Verify the arguments."
+                log.error("The path {0} does not exist. Verify the "\
+                    "arguments.".format(absolute_job_file))
 
     for log_file in list_of_log_files:
-        error_message = ""
+        error_message = []
         error_found = False
-        tree = ET.parse(log_file)
-        root = tree.getroot()
+        try:
+            tree = ET.parse(log_file)
+            root = tree.getroot()
+        except Exception as exception:
+            email_subject = "ERROR: Malformed XML log."
+            error_body = "The file {0} contains malformed XML: "\
+                "{1}".format(log_file, exception)
+            log.error(error_body)
+            emailer.send_email(distribution_group, email_subject, email_from, 
+                error_body)
 
         # Get the name of the failed job (from the log file).
         job_name = root.find("./Job").get("name")
@@ -131,14 +208,18 @@ def main(arguments):
         # current element.)
         for message in root.findall(".//message"):
             if message.get("type").strip() == "ERROR":
-                error_message += "Timestamp: " + message.get("time") + " Message: " + message.text + "\r"
+                error_message.append("Timestamp: {0} Message: "\
+                    "{1}".format(message.get("time"), message.text))
                 error_found = True
 
         # Send an email to the distribution list.
         if error_found:
-            print "INFO: Sending notification email..."
-            email_subject = "The " + job_name + " job failed in the server " + hostname + " at " + str(datetime.now().time())
-            send_email(distribution_group, email_subject, email_from, error_message)
+            log.info("Sending notification email...")
+            email_subject = "The {0} job failed in the server {1} at "\
+                "{2}".format(job_name, hostname, str(datetime.now().time()))
+            error_message_string = "\n\r".join(error_message)
+            emailer.send_email(distribution_group, email_subject, email_from, 
+                error_message_string)
 
 
 def get_args(argv):
