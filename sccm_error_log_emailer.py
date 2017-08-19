@@ -45,6 +45,9 @@
         2017-08-11  alanvemu@mx1.ibm.com    Created and assigned the 
                                             MAX_AGE_OF_LAST_LOG_FILE global 
                                             constant.
+        2017-08-11  alanvemu@mx1.ibm.com    Improved the error message that is 
+                                            sent when there is not recent log 
+                                            file created by startJobRunner.sh
 '''
 
 # Needed for system and environment information.
@@ -107,7 +110,7 @@ MAX_AGE_OF_LAST_LOG_FILE = 600
 hostname = socket.gethostname()
 
 # Email sender address.
-email_from = "SCCM@" + hostname
+email_from = "SCCM_" + hostname + "@" + hostname
 
 # JSON Object of mail_list_file.
 mail_list = ""
@@ -165,11 +168,13 @@ def main(arguments):
                     if ((time.time() - os.path.getctime(newest_log)) >
                         MAX_AGE_OF_LAST_LOG_FILE):
                         # The newest file is older than 10 minutes.
-                        email_subject = "ERROR: Missing log file."
-                        error_body = "The previous run of the {0} job did not "\
-                            "generate a log file.\n\rThis may indicate a "\
-                            "malfunction in startJobRunner.sh.\n\rCheck "\
-                            "the console logs.".format(job_name)
+                        email_subject = "ERROR: Missing {0} log file in "\
+                            "{1}".format(job_name, hostname)
+                        error_body = "The previous run of the {0} job (at "\
+                            "{1}) did not generate a log file.\n\rThis may "\
+                            "indicate a malfunction in startJobRunner.sh."\
+                            "\n\rCheck the console logs located in "\
+                            "/tmp/logs/sccm/.".format(job_name, datetime.now())
                         log.error(error_body)
                         emailer.send_email(distribution_group, email_subject, 
                             email_from, error_body)
