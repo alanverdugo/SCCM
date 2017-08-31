@@ -356,8 +356,8 @@ def main(year, month, day):
         error_message_string = "\n".join(error_message)
 
         # Send the notification email.
-        emailer.send_email(distribution_group, "SCCM CSR processing error", 
-            email_from, error_message_string)
+        emailer.build_email(distribution_group, "SCCM CSR processing error", 
+            email_from, error_message_string, None)
         exit (1)
 
 
