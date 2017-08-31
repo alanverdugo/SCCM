@@ -82,16 +82,16 @@ import time
 
 
 # Home of the SCCM installation.
-sccm_home = "/opt/ibm/sccm/"
+sccm_home = os.path.join("/opt", "ibm"," sccm")
 
 # The path where this script and the distribution list are located.
-binary_home = os.path.join(sccm_home, "bin/custom/")
+binary_home = os.path.join(sccm_home, "bin", "custom")
 
 # Location path of SCCM jobfiles.
-job_file_dir = os.path.join(sccm_home, "jobfiles/")
+job_file_dir = os.path.join(sccm_home, "jobfiles")
 
 # The root location of the collectors log files.
-log_path = os.path.join(sccm_home, "logs/jobrunner/")
+log_path = os.path.join(sccm_home, "logs", "jobrunner")
 
 # A list of the jobnames.
 list_of_job_names = []
@@ -148,8 +148,8 @@ def main(arguments):
             error_body = "The file {0} contains malformed XML: "\
                 "{1}".format(job_file, exception)
             log.error(error_body)
-            emailer.send_email(distribution_group, email_subject, email_from, 
-                error_body)
+            emailer.build_email(distribution_group, email_subject, email_from, 
+                error_body, None)
 
         for job_name in list_of_job_names:
             absolute_job_file = os.path.join(log_path, job_name)
@@ -170,14 +170,14 @@ def main(arguments):
                         # The newest file is older than 10 minutes.
                         email_subject = "ERROR: Missing {0} log file in "\
                             "{1}".format(job_name, hostname)
-                        error_body = "The previous run of the {0} job (at "\
-                            "{1}) did not generate a log file.\n\rThis may "\
+                        error_body = "At {0}, a recent log file was not "\
+                            "found for the {1} job.\n\rThis may "\
                             "indicate a malfunction in startJobRunner.sh."\
                             "\n\rCheck the console logs located in "\
-                            "/tmp/logs/sccm/.".format(job_name, datetime.now())
+                            "/tmp/logs/sccm/.".format(datetime.now(), job_name)
                         log.error(error_body)
-                        emailer.send_email(distribution_group, email_subject, 
-                            email_from, error_body)
+                        emailer.build_email(distribution_group, email_subject, 
+                            email_from, error_body, None)
                         sys.exit(2)
 
                     # Make a list with all the valid log files.
@@ -200,8 +200,8 @@ def main(arguments):
             error_body = "The file {0} contains malformed XML: "\
                 "{1}".format(log_file, exception)
             log.error(error_body)
-            emailer.send_email(distribution_group, email_subject, email_from, 
-                error_body)
+            emailer.build_email(distribution_group, email_subject, email_from, 
+                error_body, None)
 
         # Get the name of the failed job (from the log file).
         job_name = root.find("./Job").get("name")
@@ -223,8 +223,8 @@ def main(arguments):
             email_subject = "The {0} job failed in the server {1} at "\
                 "{2}".format(job_name, hostname, str(datetime.now().time()))
             error_message_string = "\n\r".join(error_message)
-            emailer.send_email(distribution_group, email_subject, email_from, 
-                error_message_string)
+            emailer.build_email(distribution_group, email_subject, email_from, 
+                error_message_string, None)
 
 
 def get_args(argv):
