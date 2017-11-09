@@ -10,14 +10,14 @@
         If any errors are found, they will be sent to the email distribution 
         list.
 
-    Autor:
+    Author:
         Alan Verdugo (alanvemu@mx1.ibm.com)
 
     Creation date:
         2016-06-01 (?)
 
     Modification list:
-        CCYY-MM-DD  Autor                   Description
+        CCYY-MM-DD  Author                   Description
         2016-07-25  alanvemu@mx1.ibm.com    The job_names are not necessarily 
                                             equal to the pathnames where the 
                                             log files are created.
@@ -27,7 +27,7 @@
                                             Also improved some error checking.
         2016-07-28  alanvemu@mx1.ibm.com    Now we look for errors in the 
                                             entire XML log.
-        2017-04-18  alanvemu@mx1.ibm.com    Converted identation to spaces.
+        2017-04-18  alanvemu@mx1.ibm.com    Converted indentation to spaces.
                                             Some changes in readability.
                                             Organized everything into functions.
         2017-05-10  alanvemu@mx1.ibm.com    Separated the send_email function 
@@ -48,6 +48,9 @@
         2017-08-11  alanvemu@mx1.ibm.com    Improved the error message that is 
                                             sent when there is not recent log 
                                             file created by startJobRunner.sh
+        2017-11-09  alanvemu@mx1.ibm.com    Now we only analyze the jobfiles 
+                                            that are labeled "active".
+                                            Corrected minor spelling errors.
 '''
 
 # Needed for system and environment information.
@@ -82,7 +85,7 @@ import time
 
 
 # Home of the SCCM installation.
-sccm_home = os.path.join("/opt", "ibm"," sccm")
+sccm_home = os.path.join("/opt", "ibm", "sccm")
 
 # The path where this script and the distribution list are located.
 binary_home = os.path.join(sccm_home, "bin", "custom")
@@ -139,10 +142,11 @@ def main(arguments):
             tree = ET.parse(job_file)
             root = tree.getroot()
             # SCCM job_files use namespaces, hence they needed to be added here.
-            # TODO: Get only the jobs that have an "active" tag on them.
             for job in root.findall("{http://www.ibm.com/TUAMJobs.xsd}Job"):
                 # Look for the content of the "Job id" tag.
-                list_of_job_names.append(job.get("id"))
+                # (Get only the jobs that have an "active" tag on them).
+                if job.get("active") == "true":
+                    list_of_job_names.append(job.get("id"))
         except Exception as exception:
             email_subject = "ERROR: Malformed XML job file."
             error_body = "The file {0} contains malformed XML: "\
@@ -208,7 +212,7 @@ def main(arguments):
 
         # Get the error output messages.
         # Since the error messages could be in any part of the XML structure,
-        # we use the // notation for finding any ocurrence of them
+        # we use the // notation for finding any occurrence of them
         # (.// Selects all subelements, on all levels beneath the 
         # current element.)
         for message in root.findall(".//message"):
