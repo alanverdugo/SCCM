@@ -43,6 +43,9 @@
                                     being executed. Hence, the csr_sender 
                                     configuration file is left intact when a 
                                     consolidation deployment occurs.
+        2018-01-09  Alan Verdugo    Fixed a bug. (args.environment may not be 
+                                    set in some circumstances so we need to 
+                                    handle that).
 '''
 # Needed for system and environment information.
 import os
@@ -267,8 +270,11 @@ def get_args(argv):
     if args.verbose:
         log.setLevel(logging.INFO)
 
-    # Call the main function with the appropriate mode.
-    main(args.git_repo, args.mode, args.environment)
+    # Call the main function with the appropriate mode and environment.
+    if "satellite" in sys.argv:
+        main(args.git_repo, args.mode, args.environment)
+    else:
+        main(args.git_repo, args.mode, None)
 
 
 if __name__ == "__main__":
