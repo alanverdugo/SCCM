@@ -1,0 +1,24 @@
+{
+    "keys": [
+        {
+            "hostname": "hostname1.example.com",
+            "key": "ssh-rsa AAAAB3NzaC1ycetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetc"
+        },
+        {
+            "hostname": "hostname2.example.com",
+            "key": "ssh-rsa AAAAB3NzaC1ycetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetc"
+        },
+        {
+            "hostname": "hostname3.example.com",
+            "key": "ssh-rsa AAAAB3NzaC1ycetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetc"
+        },
+        {
+            "hostname": "hostname4.example.com",
+            "key": "ssh-rsa AAAAB3NzaC1ycetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetc"
+        },
+        {
+            "hostname": "hostname5.example.com",
+            "key": "ssh-rsa AAAAB3NzaC1ycetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetcetc"
+        }
+    ]
+}
