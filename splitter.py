@@ -92,7 +92,7 @@ def main(log_date, input_file, prod_output_file, non_prod_output_file):
                     # non-prod list. Otherwise, it means it is prod and it is 
                     # active now, so let's add it to the prod list.
                     if datetime.strptime(subregion["date"], '%Y-%m-%d').date() \
-                        <= date.today():
+                        <= log_date:
                         prod_list.append(subregion["name"])
                     else:
                         non_prod_list.append(subregion["name"])
@@ -107,7 +107,7 @@ def main(log_date, input_file, prod_output_file, non_prod_output_file):
 
     # Open PROD output file.
     try:
-        prod_output_file = open(prod_output_file), "w")
+        prod_output_file = open(prod_output_file, "w")
         log.info("Opening PROD output file {0}".format(prod_output_file))
     except Exception as exception:
         log.exception("Unable to open file.{0} \nException: "\
@@ -116,7 +116,7 @@ def main(log_date, input_file, prod_output_file, non_prod_output_file):
 
     # Open NON-PROD output file.
     try:
-        non_prod_output_file = open(non_prod_output_file), "w")
+        non_prod_output_file = open(non_prod_output_file, "w")
         log.info("Opening NON-PROD output file {0}"\
             .format(non_prod_output_file))
     except Exception as exception:
@@ -198,7 +198,7 @@ def get_args(argv):
     # 01/01/2018) because we need to compare this --logdate to the list of 
     # regions' production dates.
     try:
-        datetime.strptime(args.log_date, "%Y%m%d").date()
+        log_date = datetime.strptime(args.log_date, "%Y%m%d").date()
     except Exception as exception:
         log.exception("{0} is not a valid date.\nException: "\
             "{1}".format(args.log_date, exception))
@@ -211,7 +211,7 @@ def get_args(argv):
         raise SystemExit(1)
 
     # Call the main function.
-    main(args.log_date, args.input_file, args.prod_output_file, 
+    main(log_date, args.input_file, args.prod_output_file, 
         args.non_prod_output_file)
 
 
