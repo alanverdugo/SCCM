@@ -1,0 +1,65 @@
+{
+    "regions": [
+        {
+            "type": "prod",
+            "consolidation": "production-server.example.com",
+            "regions": [
+                {
+                    "name": "SBY_US_POWER_cinder",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "SBY_US_VMWARE_cinder",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "WDC06_US_VMWARE_cinder",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "SBY_US_POWER_nova",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "SBY_US_VMWARE_nova",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "WDC06_US_VMWARE_nova",
+                    "date": "2018-03-29"
+                },
+                {
+                    "name": "MOP_FR_POWER_nova",
+                    "date": "2017-11-13"
+                },
+                {
+                    "name": "MOP_FR_POWER_cinder",
+                    "date": "2017-11-13"
+                },
+                {
+                    "name": "MOP_FR_VMWARE_nova",
+                    "date": "2017-11-13"
+                },
+                {
+                    "name": "MOP_FR_VMWARE_cinder",
+                    "date": "2017-11-13"
+                }
+            ]
+        },
+        {
+            "type": "non-prod",
+            "consolidation": "non-production-server.example.com",
+            "regions": [
+                {
+                    "name": "non-prodREGION1"
+                },
+                {
+                    "name": "non-prodREGION2"
+                },
+                {
+                    "name": "non-prodREGION3"
+                }
+            ]
+        }
+    ]
+}
