@@ -4,7 +4,7 @@
         python splitter.py [-h] [-v | --verbose] 
             -l | --log-date         LOG_DATE
             -i | --input-file       INPUT_FILE
-            -p | --non-prod-file    PROD_OUTPUT_FILE
+            -p | --prod-file        PROD_OUTPUT_FILE
             -n | --non-prod-file    NON_PROD_OUTPUT_FILE
 
     Arguments:
